@@ -14,7 +14,7 @@ A portfolio project showcasing **RESTful API development in Go** for healthcare 
 - Clean architecture with Repository and Service patterns
 - Multi-database design (PostgreSQL + MongoDB)
 - Comprehensive search/filtering capabilities
-- 97% test coverage (service layer)
+- 95% test coverage (service layer)
 - FHIR R4 compliance
 
 ## 🏗️ Architecture
