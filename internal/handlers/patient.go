@@ -4,15 +4,86 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/nathannewyen/fhir-health-interop/internal/service"
 	"github.com/samply/golang-fhir-models/fhir-models/fhir"
 )
 
 // PatientHandler handles Patient FHIR resource requests
-type PatientHandler struct{}
+type PatientHandler struct {
+	patientService *service.PatientService
+}
 
 // NewPatientHandler creates a new instance of PatientHandler
 func NewPatientHandler() *PatientHandler {
 	return &PatientHandler{}
+}
+
+// NewPatientHandlerWithService creates a PatientHandler with a service layer
+func NewPatientHandlerWithService(patientService *service.PatientService) *PatientHandler {
+	return &PatientHandler{
+		patientService: patientService,
+	}
+}
+
+// Create handles POST /fhir/Patient - creates a new patient
+func (handler *PatientHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Parse the FHIR Patient from request body
+	var fhirPatient fhir.Patient
+	decodeError := json.NewDecoder(r.Body).Decode(&fhirPatient)
+	if decodeError != nil {
+		http.Error(w, "Invalid FHIR Patient JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Create patient using service layer
+	createdPatient, createError := handler.patientService.CreatePatient(r.Context(), &fhirPatient)
+	if createError != nil {
+		http.Error(w, "Failed to create patient", http.StatusInternalServerError)
+		return
+	}
+
+	// Return created patient with 201 status
+	w.Header().Set("Content-Type", "application/fhir+json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(createdPatient)
+}
+
+// GetByID handles GET /fhir/Patient/{id} - retrieves a patient by ID
+func (handler *PatientHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	// Extract patient ID from URL path
+	patientID := chi.URLParam(r, "id")
+	if patientID == "" {
+		http.Error(w, "Patient ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get patient using service layer
+	fhirPatient, getError := handler.patientService.GetPatientByID(r.Context(), patientID)
+	if getError != nil {
+		http.Error(w, "Patient not found", http.StatusNotFound)
+		return
+	}
+
+	// Return patient
+	w.Header().Set("Content-Type", "application/fhir+json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(fhirPatient)
+}
+
+// GetAll handles GET /fhir/Patient - retrieves all patients
+func (handler *PatientHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	// Get all patients with default pagination
+	fhirPatients, getError := handler.patientService.GetAllPatients(r.Context(), 100, 0)
+	if getError != nil {
+		http.Error(w, "Failed to retrieve patients", http.StatusInternalServerError)
+		return
+	}
+
+	// Return patients as FHIR Bundle (simplified - just array for now)
+	w.Header().Set("Content-Type", "application/fhir+json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(fhirPatients)
 }
 
 // GetSamplePatient returns a hardcoded sample FHIR Patient resource
