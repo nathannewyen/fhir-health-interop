@@ -18,11 +18,15 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 
-	// Initialize health handler
+	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler()
+	patientHandler := handlers.NewPatientHandler()
 
 	// Register health check endpoint
 	router.Get("/health", healthHandler.Check)
+
+	// Register FHIR Patient endpoints
+	router.Get("/fhir/Patient/sample", patientHandler.GetSamplePatient)
 
 	// Define server port
 	serverPort := ":8080"

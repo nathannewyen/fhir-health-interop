@@ -22,7 +22,7 @@ func NewHealthHandler() *HealthHandler {
 }
 
 // Check returns the health status of the service
-func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
+func (healthHandler *HealthHandler) Check(writer http.ResponseWriter, request *http.Request) {
 	// Build health response with current timestamp and service status
 	healthResponse := HealthResponse{
 		Status:    "healthy",
@@ -31,9 +31,9 @@ func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set response headers for JSON content type
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusOK)
 
 	// Encode and write the JSON response
-	json.NewEncoder(w).Encode(healthResponse)
+	json.NewEncoder(writer).Encode(healthResponse)
 }
