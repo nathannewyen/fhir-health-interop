@@ -369,18 +369,6 @@ export SERVER_PORT=8080
 - **Request Latency:** < 10ms (local databases)
 - **Search Performance:** Optimized with database indexes
 
-## 🔮 Future Enhancements
-
-Potential additions (not implemented to keep it simple):
-- JWT authentication
-- Rate limiting
-- Docker Compose for one-command setup
-- API versioning
-- Audit logging
-- More FHIR resources (Practitioner, Encounter)
-- GraphQL API
-- Metrics/monitoring
-
 ## 📝 License
 
 MIT License - feel free to use for learning or portfolio purposes.
@@ -389,7 +377,7 @@ MIT License - feel free to use for learning or portfolio purposes.
 
 **Nathan Newyen**
 - GitHub: [github.com/nathannewyen](https://github.com/nathannewyen)
-- LinkedIn: [linkedin.com/in/nathannewyen](https://linkedin.com/in/nathannewyen)
+- LinkedIn: [linkedin.com/in/nathannewyen](https://www.linkedin.com/in/nhannguyen3112/)
 
 ---
 
