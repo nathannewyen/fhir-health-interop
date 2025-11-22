@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	apperrors "github.com/nathannewyen/fhir-health-interop/internal/errors"
+	"github.com/nathannewyen/fhir-health-interop/internal/middleware"
 	"github.com/nathannewyen/fhir-health-interop/internal/service"
 	"github.com/samply/golang-fhir-models/fhir-models/fhir"
 )
@@ -32,14 +34,14 @@ func (handler *PatientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var fhirPatient fhir.Patient
 	decodeError := json.NewDecoder(r.Body).Decode(&fhirPatient)
 	if decodeError != nil {
-		http.Error(w, "Invalid FHIR Patient JSON", http.StatusBadRequest)
+		middleware.WriteError(w, r, apperrors.InvalidInput("body", "Invalid FHIR Patient JSON"))
 		return
 	}
 
 	// Create patient using service layer
 	createdPatient, createError := handler.patientService.CreatePatient(r.Context(), &fhirPatient)
 	if createError != nil {
-		http.Error(w, "Failed to create patient", http.StatusInternalServerError)
+		middleware.WriteError(w, r, apperrors.Internal("Failed to create patient", createError))
 		return
 	}
 
@@ -54,14 +56,14 @@ func (handler *PatientHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	// Extract patient ID from URL path
 	patientID := chi.URLParam(r, "id")
 	if patientID == "" {
-		http.Error(w, "Patient ID is required", http.StatusBadRequest)
+		middleware.WriteError(w, r, apperrors.ValidationError("Patient ID is required"))
 		return
 	}
 
 	// Get patient using service layer
 	fhirPatient, getError := handler.patientService.GetPatientByID(r.Context(), patientID)
 	if getError != nil {
-		http.Error(w, "Patient not found", http.StatusNotFound)
+		middleware.WriteError(w, r, apperrors.NotFound("Patient", patientID))
 		return
 	}
 
@@ -76,7 +78,7 @@ func (handler *PatientHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Get all patients with default pagination
 	fhirPatients, getError := handler.patientService.GetAllPatients(r.Context(), 100, 0)
 	if getError != nil {
-		http.Error(w, "Failed to retrieve patients", http.StatusInternalServerError)
+		middleware.WriteError(w, r, apperrors.Internal("Failed to retrieve patients", getError))
 		return
 	}
 

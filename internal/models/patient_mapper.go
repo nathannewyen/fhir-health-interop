@@ -23,7 +23,7 @@ func (mapper *PatientMapper) ToFHIR(patient *Patient) *fhir.Patient {
 		fhirGender = &gender
 	}
 
-	// Convert birth date to FHIR format (YYYY-MM-DD string)
+	// Convert birthdate to FHIR format (YYYY-MM-DD string)
 	var fhirBirthDate *string
 	if patient.BirthDate != nil {
 		birthDateString := patient.BirthDate.Format("2006-01-02")

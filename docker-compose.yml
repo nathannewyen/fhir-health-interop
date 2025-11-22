@@ -1,5 +1,5 @@
 services:
-  # PostgreSQL database for FHIR resources
+  # PostgreSQL database for Patient FHIR resources
   postgres:
     image: postgres:15-alpine
     container_name: fhir-postgres
@@ -22,5 +22,25 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # MongoDB database for Observation FHIR resources
+  mongodb:
+    image: mongo:7
+    container_name: fhir-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: fhir_user
+      MONGO_INITDB_ROOT_PASSWORD: fhir_password
+      MONGO_INITDB_DATABASE: fhir_health_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  mongodb_data:
