@@ -124,3 +124,59 @@ func (handler *ObservationHandler) GetAll(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(fhirObservations)
 }
+
+// Update handles PUT /fhir/Observation/{id} - updates an existing observation
+func (handler *ObservationHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Extract observation ID from URL path
+	observationID := chi.URLParam(r, "id")
+	if observationID == "" {
+		middleware.WriteError(w, r, apperrors.ValidationError("Observation ID is required"))
+		return
+	}
+
+	// Parse the FHIR Observation from request body
+	var fhirObservation fhir.Observation
+	decodeError := json.NewDecoder(r.Body).Decode(&fhirObservation)
+	if decodeError != nil {
+		middleware.WriteError(w, r, apperrors.InvalidInput("body", "Invalid FHIR Observation JSON"))
+		return
+	}
+
+	// Validate that the ID in the URL matches the ID in the body (if provided)
+	if fhirObservation.Id != nil && *fhirObservation.Id != observationID {
+		middleware.WriteError(w, r, apperrors.ValidationError("Observation ID in URL does not match ID in body"))
+		return
+	}
+
+	// Update observation using service layer
+	updatedObservation, updateError := handler.observationService.UpdateObservation(r.Context(), observationID, &fhirObservation)
+	if updateError != nil {
+		middleware.WriteError(w, r, apperrors.Internal("Failed to update observation", updateError))
+		return
+	}
+
+	// Return updated observation with 200 OK
+	w.Header().Set("Content-Type", "application/fhir+json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(updatedObservation)
+}
+
+// Delete handles DELETE /fhir/Observation/{id} - deletes an observation
+func (handler *ObservationHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Extract observation ID from URL path
+	observationID := chi.URLParam(r, "id")
+	if observationID == "" {
+		middleware.WriteError(w, r, apperrors.ValidationError("Observation ID is required"))
+		return
+	}
+
+	// Delete observation using service layer
+	deleteError := handler.observationService.DeleteObservation(r.Context(), observationID)
+	if deleteError != nil {
+		middleware.WriteError(w, r, apperrors.NotFound("Observation", observationID))
+		return
+	}
+
+	// Return 204 No Content on successful deletion
+	w.WriteHeader(http.StatusNoContent)
+}

@@ -96,6 +96,62 @@ func (handler *PatientHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(fhirPatients)
 }
 
+// Update handles PUT /fhir/Patient/{id} - updates an existing patient
+func (handler *PatientHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Extract patient ID from URL path
+	patientID := chi.URLParam(r, "id")
+	if patientID == "" {
+		middleware.WriteError(w, r, apperrors.ValidationError("Patient ID is required"))
+		return
+	}
+
+	// Parse the FHIR Patient from request body
+	var fhirPatient fhir.Patient
+	decodeError := json.NewDecoder(r.Body).Decode(&fhirPatient)
+	if decodeError != nil {
+		middleware.WriteError(w, r, apperrors.InvalidInput("body", "Invalid FHIR Patient JSON"))
+		return
+	}
+
+	// Validate that the ID in the URL matches the ID in the body (if provided)
+	if fhirPatient.Id != nil && *fhirPatient.Id != patientID {
+		middleware.WriteError(w, r, apperrors.ValidationError("Patient ID in URL does not match ID in body"))
+		return
+	}
+
+	// Update patient using service layer (ID is passed separately)
+	updatedPatient, updateError := handler.patientService.UpdatePatient(r.Context(), patientID, &fhirPatient)
+	if updateError != nil {
+		middleware.WriteError(w, r, apperrors.Internal("Failed to update patient", updateError))
+		return
+	}
+
+	// Return updated patient with 200 OK
+	w.Header().Set("Content-Type", "application/fhir+json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(updatedPatient)
+}
+
+// Delete handles DELETE /fhir/Patient/{id} - deletes a patient
+func (handler *PatientHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Extract patient ID from URL path
+	patientID := chi.URLParam(r, "id")
+	if patientID == "" {
+		middleware.WriteError(w, r, apperrors.ValidationError("Patient ID is required"))
+		return
+	}
+
+	// Delete patient using service layer
+	deleteError := handler.patientService.DeletePatient(r.Context(), patientID)
+	if deleteError != nil {
+		middleware.WriteError(w, r, apperrors.NotFound("Patient", patientID))
+		return
+	}
+
+	// Return 204 No Content on successful deletion
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GetSamplePatient returns a hardcoded sample FHIR Patient resource
 // This endpoint demonstrates the FHIR Patient structure before database integration
 func (h *PatientHandler) GetSamplePatient(w http.ResponseWriter, r *http.Request) {

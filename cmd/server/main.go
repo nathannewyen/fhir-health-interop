@@ -84,11 +84,15 @@ func main() {
 	router.Post("/fhir/Patient", patientHandler.Create)
 	router.Get("/fhir/Patient/{id}", patientHandler.GetByID)
 	router.Get("/fhir/Patient", patientHandler.GetAll)
+	router.Put("/fhir/Patient/{id}", patientHandler.Update)
+	router.Delete("/fhir/Patient/{id}", patientHandler.Delete)
 
 	// Register FHIR Observation endpoints
 	router.Post("/fhir/Observation", observationHandler.Create)
 	router.Get("/fhir/Observation/{id}", observationHandler.GetByID)
 	router.Get("/fhir/Observation", observationHandler.GetAll)
+	router.Put("/fhir/Observation/{id}", observationHandler.Update)
+	router.Delete("/fhir/Observation/{id}", observationHandler.Delete)
 
 	// Define server port
 	serverPort := ":8080"
@@ -96,14 +100,18 @@ func main() {
 	// Log server startup
 	log.Info().Str("port", serverPort).Msg("FHIR Health Interop server starting")
 	fmt.Println("\nAvailable endpoints:")
-	fmt.Println("  GET  /health                     - Health check")
-	fmt.Println("  GET  /fhir/Patient/sample        - Sample patient (hardcoded)")
-	fmt.Println("  POST /fhir/Patient               - Create patient")
-	fmt.Println("  GET  /fhir/Patient/{id}          - Get patient by ID")
-	fmt.Println("  GET  /fhir/Patient               - Get all patients")
-	fmt.Println("  POST /fhir/Observation           - Create observation")
-	fmt.Println("  GET  /fhir/Observation/{id}      - Get observation by ID")
-	fmt.Println("  GET  /fhir/Observation?patient=X - Get observations by patient ID")
+	fmt.Println("  GET    /health                     - Health check")
+	fmt.Println("  GET    /fhir/Patient/sample        - Sample patient (hardcoded)")
+	fmt.Println("  POST   /fhir/Patient               - Create patient")
+	fmt.Println("  GET    /fhir/Patient/{id}          - Get patient by ID")
+	fmt.Println("  GET    /fhir/Patient               - Search patients (supports filters)")
+	fmt.Println("  PUT    /fhir/Patient/{id}          - Update patient")
+	fmt.Println("  DELETE /fhir/Patient/{id}          - Delete patient")
+	fmt.Println("  POST   /fhir/Observation           - Create observation")
+	fmt.Println("  GET    /fhir/Observation/{id}      - Get observation by ID")
+	fmt.Println("  GET    /fhir/Observation           - Search observations (supports filters)")
+	fmt.Println("  PUT    /fhir/Observation/{id}      - Update observation")
+	fmt.Println("  DELETE /fhir/Observation/{id}      - Delete observation")
 	fmt.Println()
 
 	serverError := http.ListenAndServe(serverPort, router)

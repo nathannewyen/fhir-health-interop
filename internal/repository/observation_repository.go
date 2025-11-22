@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -69,7 +70,7 @@ func (repository *MongoObservationRepository) GetByID(ctx context.Context, obser
 	filter := bson.M{"_id": objectID}
 	findError := repository.collection.FindOne(ctx, filter).Decode(&observation)
 	if findError != nil {
-		if findError == mongo.ErrNoDocuments {
+		if errors.Is(findError, mongo.ErrNoDocuments) {
 			return nil, fmt.Errorf("observation not found")
 		}
 		return nil, fmt.Errorf("failed to find observation: %w", findError)
