@@ -8,6 +8,7 @@ import (
 	apperrors "github.com/nathannewyen/fhir-health-interop/internal/errors"
 	"github.com/nathannewyen/fhir-health-interop/internal/middleware"
 	"github.com/nathannewyen/fhir-health-interop/internal/service"
+	"github.com/nathannewyen/fhir-health-interop/internal/utils"
 	"github.com/samply/golang-fhir-models/fhir-models/fhir"
 )
 
@@ -73,12 +74,19 @@ func (handler *PatientHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(fhirPatient)
 }
 
-// GetAll handles GET /fhir/Patient - retrieves all patients
+// GetAll handles GET /fhir/Patient - retrieves all patients with optional search parameters
 func (handler *PatientHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	// Get all patients with default pagination
-	fhirPatients, getError := handler.patientService.GetAllPatients(r.Context(), 100, 0)
-	if getError != nil {
-		middleware.WriteError(w, r, apperrors.Internal("Failed to retrieve patients", getError))
+	// Parse search parameters from query string
+	searchParams, parseError := utils.ParsePatientSearchParams(r)
+	if parseError != nil {
+		middleware.WriteError(w, r, apperrors.ValidationError("Invalid search parameters"))
+		return
+	}
+
+	// Search patients using service layer
+	fhirPatients, searchError := handler.patientService.SearchPatients(r.Context(), searchParams)
+	if searchError != nil {
+		middleware.WriteError(w, r, apperrors.Internal("Failed to search patients", searchError))
 		return
 	}
 

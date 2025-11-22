@@ -99,6 +99,23 @@ func (service *ObservationService) UpdateObservation(ctx context.Context, observ
 	return service.observationMapper.ToFHIR(updatedObservation), nil
 }
 
+// SearchObservations retrieves observations matching the search criteria
+func (service *ObservationService) SearchObservations(ctx context.Context, searchParams *models.ObservationSearchParams) ([]*fhir.Observation, error) {
+	// Search in repository
+	observations, searchError := service.observationRepository.Search(ctx, searchParams)
+	if searchError != nil {
+		return nil, searchError
+	}
+
+	// Convert to FHIR
+	fhirObservations := make([]*fhir.Observation, 0, len(observations))
+	for _, observation := range observations {
+		fhirObservations = append(fhirObservations, service.observationMapper.ToFHIR(observation))
+	}
+
+	return fhirObservations, nil
+}
+
 // DeleteObservation deletes an observation by ID
 func (service *ObservationService) DeleteObservation(ctx context.Context, observationID string) error {
 	return service.observationRepository.Delete(ctx, observationID)

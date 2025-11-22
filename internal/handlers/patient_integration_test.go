@@ -64,6 +64,17 @@ func (mock *MockPatientRepository) Update(ctx context.Context, patient *models.P
 	return patient, nil
 }
 
+func (mock *MockPatientRepository) Search(ctx context.Context, searchParams *models.PatientSearchParams) ([]*models.Patient, error) {
+	if mock.getAllError != nil {
+		return nil, mock.getAllError
+	}
+	result := make([]*models.Patient, 0, len(mock.patients))
+	for _, patient := range mock.patients {
+		result = append(result, patient)
+	}
+	return result, nil
+}
+
 func (mock *MockPatientRepository) Delete(ctx context.Context, patientID string) error {
 	return nil
 }

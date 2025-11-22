@@ -21,7 +21,7 @@ func FHIRValidator(next http.Handler) http.Handler {
 
 		// Only validate FHIR endpoints
 		if !isFHIREndpoint(r.URL.Path) {
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r) // w: http.ResponseWriter, r: *http.Request
 			return
 		}
 

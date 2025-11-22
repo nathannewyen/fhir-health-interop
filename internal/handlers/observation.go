@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	apperrors "github.com/nathannewyen/fhir-health-interop/internal/errors"
 	"github.com/nathannewyen/fhir-health-interop/internal/middleware"
+	"github.com/nathannewyen/fhir-health-interop/internal/models"
+	"github.com/nathannewyen/fhir-health-interop/internal/utils"
 	"github.com/samply/golang-fhir-models/fhir-models/fhir"
 )
 
@@ -17,6 +19,7 @@ type ObservationServiceInterface interface {
 	GetObservationByID(ctx context.Context, observationID string) (*fhir.Observation, error)
 	GetObservationsByPatientID(ctx context.Context, patientID string, limit int, offset int) ([]*fhir.Observation, error)
 	GetAllObservations(ctx context.Context, limit int, offset int) ([]*fhir.Observation, error)
+	SearchObservations(ctx context.Context, searchParams *models.ObservationSearchParams) ([]*fhir.Observation, error)
 	UpdateObservation(ctx context.Context, observationID string, fhirObservation *fhir.Observation) (*fhir.Observation, error)
 	DeleteObservation(ctx context.Context, observationID string) error
 }
@@ -100,18 +103,19 @@ func (handler *ObservationHandler) GetByPatientID(w http.ResponseWriter, r *http
 	json.NewEncoder(w).Encode(fhirObservations)
 }
 
-// GetAll handles GET /fhir/Observation - retrieves all observations
+// GetAll handles GET /fhir/Observation - retrieves all observations with optional search parameters
 func (handler *ObservationHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	// Check if patient query parameter exists
-	if r.URL.Query().Has("patient") {
-		handler.GetByPatientID(w, r)
+	// Parse search parameters from query string
+	searchParams, parseError := utils.ParseObservationSearchParams(r)
+	if parseError != nil {
+		middleware.WriteError(w, r, apperrors.ValidationError("Invalid search parameters"))
 		return
 	}
 
-	// Get all observations with default pagination
-	fhirObservations, getError := handler.observationService.GetAllObservations(r.Context(), 100, 0)
-	if getError != nil {
-		middleware.WriteError(w, r, apperrors.Internal("Failed to retrieve observations", getError))
+	// Search observations using service layer
+	fhirObservations, searchError := handler.observationService.SearchObservations(r.Context(), searchParams)
+	if searchError != nil {
+		middleware.WriteError(w, r, apperrors.Internal("Failed to search observations", searchError))
 		return
 	}
 

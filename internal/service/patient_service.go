@@ -87,6 +87,23 @@ func (service *PatientService) UpdatePatient(ctx context.Context, patientID stri
 	return service.patientMapper.ToFHIR(updatedPatient), nil
 }
 
+// SearchPatients retrieves patients matching the search criteria
+func (service *PatientService) SearchPatients(ctx context.Context, searchParams *models.PatientSearchParams) ([]*fhir.Patient, error) {
+	// Search in database
+	domainPatients, searchError := service.patientRepository.Search(ctx, searchParams)
+	if searchError != nil {
+		return nil, searchError
+	}
+
+	// Convert each patient to FHIR format
+	fhirPatients := make([]*fhir.Patient, len(domainPatients))
+	for index, domainPatient := range domainPatients {
+		fhirPatients[index] = service.patientMapper.ToFHIR(domainPatient)
+	}
+
+	return fhirPatients, nil
+}
+
 // DeletePatient removes a patient by ID
 func (service *PatientService) DeletePatient(ctx context.Context, patientID string) error {
 	return service.patientRepository.Delete(ctx, patientID)

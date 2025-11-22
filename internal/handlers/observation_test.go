@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/nathannewyen/fhir-health-interop/internal/models"
 	"github.com/samply/golang-fhir-models/fhir-models/fhir"
 )
 
@@ -77,6 +78,17 @@ func (mock *MockObservationService) GetAllObservations(ctx context.Context, limi
 
 func (mock *MockObservationService) UpdateObservation(ctx context.Context, observationID string, fhirObservation *fhir.Observation) (*fhir.Observation, error) {
 	return fhirObservation, nil
+}
+
+func (mock *MockObservationService) SearchObservations(ctx context.Context, searchParams *models.ObservationSearchParams) ([]*fhir.Observation, error) {
+	if mock.getAllError != nil {
+		return nil, mock.getAllError
+	}
+	result := make([]*fhir.Observation, 0, len(mock.observations))
+	for _, observation := range mock.observations {
+		result = append(result, observation)
+	}
+	return result, nil
 }
 
 func (mock *MockObservationService) DeleteObservation(ctx context.Context, observationID string) error {

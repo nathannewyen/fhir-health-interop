@@ -79,6 +79,18 @@ func (mock *MockPatientRepository) Update(ctx context.Context, patient *models.P
 	return patient, nil
 }
 
+// Search retrieves patients matching search criteria
+func (mock *MockPatientRepository) Search(ctx context.Context, searchParams *models.PatientSearchParams) ([]*models.Patient, error) {
+	if mock.getAllError != nil {
+		return nil, mock.getAllError
+	}
+	result := make([]*models.Patient, 0, len(mock.patients))
+	for _, patient := range mock.patients {
+		result = append(result, patient)
+	}
+	return result, nil
+}
+
 // Delete removes a patient by ID
 func (mock *MockPatientRepository) Delete(ctx context.Context, patientID string) error {
 	if mock.deleteError != nil {
@@ -317,6 +329,86 @@ func TestPatientService_DeletePatient(t *testing.T) {
 	// Verify delete was called
 	if mockRepo.lastDeletedID != "delete-uuid" {
 		t.Errorf("Expected delete called with delete-uuid, got %s", mockRepo.lastDeletedID)
+	}
+}
+
+// TestPatientService_SearchPatients tests search functionality
+func TestPatientService_SearchPatients(t *testing.T) {
+	// Setup mock repository
+	mockRepo := NewMockPatientRepository()
+	patientService := NewPatientService(mockRepo)
+
+	// Create test patients
+	birthdate := time.Date(1985, 3, 15, 0, 0, 0, 0, time.UTC)
+	patient1 := &models.Patient{
+		ID:               "search-uuid-1",
+		IdentifierSystem: "http://hospital.com",
+		IdentifierValue:  "P001",
+		Active:           true,
+		FamilyName:       "Smith",
+		GivenName:        "John",
+		Gender:           "male",
+		BirthDate:        &birthdate,
+	}
+	patient2 := &models.Patient{
+		ID:               "search-uuid-2",
+		IdentifierSystem: "http://hospital.com",
+		IdentifierValue:  "P002",
+		Active:           true,
+		FamilyName:       "Johnson",
+		GivenName:        "Jane",
+		Gender:           "female",
+		BirthDate:        &birthdate,
+	}
+	mockRepo.patients[patient1.ID] = patient1
+	mockRepo.patients[patient2.ID] = patient2
+
+	// Execute search
+	searchParams := &models.PatientSearchParams{
+		Name:   "Smith",
+		Limit:  10,
+		Offset: 0,
+	}
+	results, searchError := patientService.SearchPatients(context.Background(), searchParams)
+
+	// Verify no error
+	if searchError != nil {
+		t.Fatalf("Expected no error, got %v", searchError)
+	}
+
+	// Verify results (mock returns all patients, so should get 2)
+	if len(results) != 2 {
+		t.Errorf("Expected 2 patients, got %d", len(results))
+	}
+
+	// Verify FHIR conversion happened (results should not be nil)
+	if len(results) > 0 && results[0] == nil {
+		t.Error("Expected FHIR patient to not be nil")
+	}
+}
+
+// TestPatientService_SearchPatients_Error tests search error handling
+func TestPatientService_SearchPatients_Error(t *testing.T) {
+	// Setup mock repository with error
+	mockRepo := NewMockPatientRepository()
+	mockRepo.getAllError = errors.New("database error")
+	patientService := NewPatientService(mockRepo)
+
+	// Execute search
+	searchParams := &models.PatientSearchParams{
+		Limit:  10,
+		Offset: 0,
+	}
+	results, searchError := patientService.SearchPatients(context.Background(), searchParams)
+
+	// Verify error is returned
+	if searchError == nil {
+		t.Error("Expected error, got nil")
+	}
+
+	// Verify no results
+	if results != nil {
+		t.Error("Expected nil results on error")
 	}
 }
 

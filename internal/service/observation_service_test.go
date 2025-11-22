@@ -84,6 +84,17 @@ func (mock *MockObservationRepository) Update(ctx context.Context, observation *
 	return observation, nil
 }
 
+func (mock *MockObservationRepository) Search(ctx context.Context, searchParams *models.ObservationSearchParams) ([]*models.Observation, error) {
+	if mock.getAllError != nil {
+		return nil, mock.getAllError
+	}
+	result := make([]*models.Observation, 0, len(mock.observations))
+	for _, observation := range mock.observations {
+		result = append(result, observation)
+	}
+	return result, nil
+}
+
 func (mock *MockObservationRepository) Delete(ctx context.Context, observationID string) error {
 	if mock.deleteError != nil {
 		return mock.deleteError
@@ -344,6 +355,91 @@ func TestObservationService_DeleteObservation_Error(t *testing.T) {
 
 	if deleteError == nil {
 		t.Error("Expected error, got nil")
+	}
+}
+
+// TestObservationService_SearchObservations tests search functionality
+func TestObservationService_SearchObservations(t *testing.T) {
+	// Setup mock repository
+	mockRepo := NewMockObservationRepository()
+	observationService := NewObservationService(mockRepo)
+
+	// Create test observations
+	effectiveDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	valueQuantity := 120.0
+	observation1 := &models.Observation{
+		ID:            "search-obs-1",
+		PatientID:     "patient-001",
+		Status:        "final",
+		Category:      "vital-signs",
+		Code:          "8480-6",
+		CodeSystem:    "http://loinc.org",
+		CodeDisplay:   "Systolic Blood Pressure",
+		ValueQuantity: &valueQuantity,
+		ValueUnit:     "mmHg",
+		EffectiveDate: &effectiveDate,
+	}
+	observation2 := &models.Observation{
+		ID:            "search-obs-2",
+		PatientID:     "patient-002",
+		Status:        "final",
+		Category:      "laboratory",
+		Code:          "2093-3",
+		CodeSystem:    "http://loinc.org",
+		CodeDisplay:   "Cholesterol",
+		ValueQuantity: &valueQuantity,
+		ValueUnit:     "mg/dL",
+		EffectiveDate: &effectiveDate,
+	}
+	mockRepo.observations[observation1.ID] = observation1
+	mockRepo.observations[observation2.ID] = observation2
+
+	// Execute search
+	searchParams := &models.ObservationSearchParams{
+		PatientID: "patient-001",
+		Limit:     10,
+		Offset:    0,
+	}
+	results, searchError := observationService.SearchObservations(context.Background(), searchParams)
+
+	// Verify no error
+	if searchError != nil {
+		t.Fatalf("Expected no error, got %v", searchError)
+	}
+
+	// Verify results (mock returns all observations, so should get 2)
+	if len(results) != 2 {
+		t.Errorf("Expected 2 observations, got %d", len(results))
+	}
+
+	// Verify FHIR conversion happened (results should not be nil)
+	if len(results) > 0 && results[0] == nil {
+		t.Error("Expected FHIR observation to not be nil")
+	}
+}
+
+// TestObservationService_SearchObservations_Error tests search error handling
+func TestObservationService_SearchObservations_Error(t *testing.T) {
+	// Setup mock repository with error
+	mockRepo := NewMockObservationRepository()
+	mockRepo.getAllError = errors.New("database error")
+	observationService := NewObservationService(mockRepo)
+
+	// Execute search
+	searchParams := &models.ObservationSearchParams{
+		Limit:  10,
+		Offset: 0,
+	}
+	results, searchError := observationService.SearchObservations(context.Background(), searchParams)
+
+	// Verify error is returned
+	if searchError == nil {
+		t.Error("Expected error, got nil")
+	}
+
+	// Verify no results
+	if results != nil {
+		t.Error("Expected nil results on error")
 	}
 }
 

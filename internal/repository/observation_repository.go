@@ -18,6 +18,7 @@ type ObservationRepository interface {
 	GetByID(ctx context.Context, observationID string) (*models.Observation, error)
 	GetByPatientID(ctx context.Context, patientID string, limit int, offset int) ([]*models.Observation, error)
 	GetAll(ctx context.Context, limit int, offset int) ([]*models.Observation, error)
+	Search(ctx context.Context, searchParams *models.ObservationSearchParams) ([]*models.Observation, error)
 	Update(ctx context.Context, observation *models.Observation) (*models.Observation, error)
 	Delete(ctx context.Context, observationID string) error
 }
@@ -128,6 +129,90 @@ func (repository *MongoObservationRepository) GetAll(ctx context.Context, limit 
 	return observations, nil
 }
 
+// Search retrieves observations matching the search criteria with dynamic filtering
+func (repository *MongoObservationRepository) Search(ctx context.Context, searchParams *models.ObservationSearchParams) ([]*models.Observation, error) {
+	// Build dynamic filter based on search parameters
+	filter := bson.M{}
+
+	// Add patient ID filter
+	if searchParams.PatientID != "" {
+		filter["patient_id"] = searchParams.PatientID
+	}
+
+	// Add code filter
+	if searchParams.Code != "" {
+		filter["code"] = searchParams.Code
+	}
+
+	// Add category filter
+	if searchParams.Category != "" {
+		filter["category"] = searchParams.Category
+	}
+
+	// Add status filter
+	if searchParams.Status != "" {
+		filter["status"] = searchParams.Status
+	}
+
+	// Add date range filters
+	if searchParams.DateGreaterThan != nil {
+		if filter["effective_date"] == nil {
+			filter["effective_date"] = bson.M{}
+		}
+		filter["effective_date"].(bson.M)["$gte"] = searchParams.DateGreaterThan
+	}
+
+	if searchParams.DateLessThan != nil {
+		if filter["effective_date"] == nil {
+			filter["effective_date"] = bson.M{}
+		}
+		filter["effective_date"].(bson.M)["$lte"] = searchParams.DateLessThan
+	}
+
+	// Build options for sorting and pagination
+	findOptions := options.Find()
+	findOptions.SetLimit(int64(searchParams.Limit))
+	findOptions.SetSkip(int64(searchParams.Offset))
+
+	// Add sorting
+	sortBy := "created_at"
+	sortOrder := -1 // -1 for descending, 1 for ascending
+
+	if searchParams.SortBy != "" {
+		// Validate sort field
+		validSortFields := map[string]string{
+			"effective_date": "effective_date",
+			"code":           "code",
+			"status":         "status",
+			"created_at":     "created_at",
+		}
+		if field, valid := validSortFields[searchParams.SortBy]; valid {
+			sortBy = field
+		}
+	}
+
+	if searchParams.SortOrder == "asc" {
+		sortOrder = 1
+	}
+
+	findOptions.SetSort(bson.M{sortBy: sortOrder})
+
+	// Execute query
+	cursor, findError := repository.collection.Find(ctx, filter, findOptions)
+	if findError != nil {
+		return nil, fmt.Errorf("failed to search observations: %w", findError)
+	}
+	defer cursor.Close(ctx)
+
+	// Decode results
+	observations := make([]*models.Observation, 0)
+	if decodeError := cursor.All(ctx, &observations); decodeError != nil {
+		return nil, fmt.Errorf("failed to decode observations: %w", decodeError)
+	}
+
+	return observations, nil
+}
+
 // Update modifies an existing observation
 func (repository *MongoObservationRepository) Update(ctx context.Context, observation *models.Observation) (*models.Observation, error) {
 	// Convert string ID to ObjectID
@@ -143,19 +228,19 @@ func (repository *MongoObservationRepository) Update(ctx context.Context, observ
 	filter := bson.M{"_id": objectID}
 	update := bson.M{
 		"$set": bson.M{
-			"patient_id":      observation.PatientID,
-			"status":          observation.Status,
-			"category":        observation.Category,
-			"code":            observation.Code,
-			"code_system":     observation.CodeSystem,
-			"code_display":    observation.CodeDisplay,
-			"value_quantity":  observation.ValueQuantity,
-			"value_unit":      observation.ValueUnit,
-			"value_string":    observation.ValueString,
-			"effective_date":  observation.EffectiveDate,
-			"issued_date":     observation.IssuedDate,
-			"components":      observation.Components,
-			"updated_at":      observation.UpdatedAt,
+			"patient_id":     observation.PatientID,
+			"status":         observation.Status,
+			"category":       observation.Category,
+			"code":           observation.Code,
+			"code_system":    observation.CodeSystem,
+			"code_display":   observation.CodeDisplay,
+			"value_quantity": observation.ValueQuantity,
+			"value_unit":     observation.ValueUnit,
+			"value_string":   observation.ValueString,
+			"effective_date": observation.EffectiveDate,
+			"issued_date":    observation.IssuedDate,
+			"components":     observation.Components,
+			"updated_at":     observation.UpdatedAt,
 		},
 	}
 
